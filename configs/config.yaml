@@ -1,0 +1,10 @@
+defaults:
+    - _self_
+    - task: qap
+    - algorithm: bo
+
+epochs: 100
+project: 'permutation-experiments'
+# device: 'cuda'
+device: 'cpu'
+seed: 2022

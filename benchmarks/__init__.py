@@ -1,0 +1,1 @@
+from ._qap_problem import QAPProblem
