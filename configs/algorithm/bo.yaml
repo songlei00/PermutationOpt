@@ -1,4 +1,4 @@
-alg_name: 'bo'
+name: 'bo'
 
 model:
     _target_: algorithms.BO

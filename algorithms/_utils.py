@@ -34,9 +34,8 @@ def lhs_sampler(n, dims) -> np.array:
 
 def permutation_sampler(n, dims, choices=None) -> np.array:
     if choices is None:
-        points = [np.random.permutation(dims) for _ in range(n)]
-    else:
-        points = [np.random.choice(choices, dims, replace=False) for _ in range(n)]
+        choices = range(dims)
+    points = [np.random.choice(choices, dims, replace=False) for _ in range(n)]
     points = np.vstack(points)
     return points
 

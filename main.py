@@ -11,17 +11,20 @@ def main(cfg: DictConfig) -> None:
     import torch
     import numpy as np
     import wandb
+    import time
     from utils import seed_everything, load_task
     from algorithms import BO
     
     if cfg['seed'] is not None:
         seed_everything(cfg['seed'])
         
+    # set parameters
     alg_cfg = cfg['algorithm']
     task_cfg = cfg['task']
+    curr_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     wandb.init(
         project=cfg['project'],
-        name=f"111",
+        name='{}-{}-{}-{}'.format(task_cfg['name'], alg_cfg['name'], cfg['seed'], curr_time),
         config=omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),
     )
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
@@ -31,21 +34,34 @@ def main(cfg: DictConfig) -> None:
     dims = func.dims
     f = lambda x: -func(x)
     alg = hydra.utils.instantiate(alg_cfg['model'], dims=dims, lb=np.zeros(dims), ub=np.full(dims, dims-1))
-    print(alg.init_sampler_type)
     # alg = BO(dims=dims, lb=0, ub=dims-1)
     
     log.info(f'func: {f}, alg: {alg}, dims: {dims}')
     
+    # train
     xs = []
     ys = []
-    x_best = []
-    y_best = []
+    x_best = None
+    y_best = None
     for epoch in range(cfg['epochs']):
         cand = alg.ask()
-        print(cand)
         y = f(cand)
-        print(epoch, y)
         alg.tell(cand, y)
+
+        # log
+        xs.append(cand)
+        ys.append(y)
+        if y_best is None or y > y_best:
+            x_best = cand
+            y_best = y
+        log.info('Epoch: {}, y best: {}, x: {}, y: {}'.format(epoch, y_best, cand, y))
+
+        # wandb log
+        wandb.log({
+            task_cfg['name']+'/epoch': epoch, 
+            task_cfg['name']+'/y': y,
+        })
+        wandb.run.summary['y best'] = y
 
 
 if __name__ == '__main__':

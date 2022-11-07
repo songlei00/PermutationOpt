@@ -1,7 +1,7 @@
 from textwrap import fill
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict
 
 
 class BaseStrategy(metaclass=ABCMeta):
@@ -27,7 +27,6 @@ class PermutationRandomStrategy(BaseStrategy):
         vals = [int(i) for i in fixed_vars.values()]
         fillin_vals = list(set(range(self.dims)) - set(keys))
         fillin_vals = np.random.permutation(fillin_vals)
-        print('fill in', fillin_vals)
         new_x = np.zeros(self.dims)
         for k, v in fixed_vars.items():
             new_x[int(v)] = k
@@ -38,6 +37,22 @@ class PermutationRandomStrategy(BaseStrategy):
                 i += 1
         assert len(set(new_x)) == self.dims
         return new_x
+
+    def update(self, x, y):
+        pass
+
+
+class PermutationBestPosStrategy(BaseStrategy):
+    def fillin(self, fixed_vars: Dict[int, int], lb, ub):
+        pass
+
+    def update(self, x, y):
+        pass
+
+
+class PermutationBestOrderStrategy(BaseStrategy):
+    def fillin(self, fixed_vars: Dict[int, int], lb, ub):
+        pass
 
     def update(self, x, y):
         pass
