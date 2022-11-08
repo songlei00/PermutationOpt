@@ -2,10 +2,10 @@ name: 'bo'
 
 model:
     _target_: algorithms.BO
+    active_dims: 15
     n_init: 10
     init_sampler_type: 'permutation'
     acqf_init_sampler_type: 'permutation'
     acqf_type: 'EI'
-    acqf_opt_type: 'random'
+    acqf_opt_type: 'ea'
     kernel_type: 'vs'
-

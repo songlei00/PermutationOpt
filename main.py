@@ -43,25 +43,30 @@ def main(cfg: DictConfig) -> None:
     ys = []
     x_best = None
     y_best = None
+    total_evaluations = 0
     for epoch in range(cfg['epochs']):
-        cand = alg.ask()
-        y = f(cand)
-        alg.tell(cand, y)
+        cands = alg.ask()
+        cands_y = [f(cand) for cand in cands]
+        alg.tell(cands, cands_y)
 
         # log
-        xs.append(cand)
-        ys.append(y)
-        if y_best is None or y > y_best:
-            x_best = cand
-            y_best = y
-        log.info('Epoch: {}, y best: {}, x: {}, y: {}'.format(epoch, y_best, cand, y))
+        xs.extend(cands)
+        ys.extend(cands_y)
+        total_evaluations += len(cands)
+        if y_best is None or np.max(cands_y) > y_best:
+            max_idx = np.argmax(cands_y)
+            x_best = cands[max_idx]
+            y_best = cands_y[max_idx]
+        log.info('Epoch: {}, total evaluations: {}, y best: {}'.format(epoch, total_evaluations, y_best))
+        log.info('cands: {}, cands y: {}'.format(cands, cands_y))
 
         # wandb log
         wandb.log({
-            task_cfg['name']+'/epoch': epoch, 
-            task_cfg['name']+'/y': y,
+            task_cfg['name']+'/epoch': epoch,
+            task_cfg['name']+'/total evaluations': total_evaluations,
+            task_cfg['name']+'/y': y_best,
         })
-        wandb.run.summary['y best'] = y
+        wandb.run.summary['y best'] = y_best
 
 
 if __name__ == '__main__':

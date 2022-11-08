@@ -1,0 +1,8 @@
+name: 'ea'
+
+model:
+    _target_: algorithms.EA
+    pop_size: 20
+    init_sampler_type: 'permutation'
+    mutation_type: 'swap'
+    crossover_type: 'order'
