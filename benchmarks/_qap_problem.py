@@ -9,7 +9,9 @@ class QAPProblem:
         self.dims = self.A.shape[0]
         
     def __call__(self, x):
+        assert len(set(x)) == self.dims
         assert len(x) == self.dims
+        x = x.astype(np.int)
         E = np.eye(self.dims)
         # permutation = np.array([np.arange(self.dims), x]) 
         permutation = x

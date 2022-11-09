@@ -36,6 +36,26 @@ def discordant_cnt(x, y):
 
 
 class OrderKernel(Kernel):
+    has_lengthscale = True
+    # def forward(self, X, X2, **params):
+    #     if X.dim() == 2:
+    #         X = X[:, None, :]
+    #     if X2.dim() == 3:
+    #         assert len(X2) == 1
+    #         X2 = X2[0]
+    #     assert X.shape[1] == 1
+    #     max_cnt = (X.shape[-1] * (X.shape[-1]-1)) / 2
+    #     log.debug('Order kernel: X shape: {}, X2 shape: {}'.format(X.shape, X2.shape))
+    #     mat = torch.zeros((len(X), len(X2)))
+    #     log.debug('mat shape: {}'.format(mat.shape))
+    #     for i in range(len(X)):
+    #         x1 = X[i][0]
+    #         for j in range(len(X2)):
+    #             x2 = X2[j]
+    #             mat[i][j] = (max_cnt - 2*discordant_cnt(x1, x2)) / max_cnt
+        
+    #     return mat
+
     def forward(self, X, X2, **params):
         if X.dim() == 2:
             X = X[:, None, :]
@@ -43,21 +63,19 @@ class OrderKernel(Kernel):
             assert len(X2) == 1
             X2 = X2[0]
         assert X.shape[1] == 1
-        max_cnt = (X.shape[-1] * (X.shape[-1]-1)) / 2
         log.debug('Order kernel: X shape: {}, X2 shape: {}'.format(X.shape, X2.shape))
         mat = torch.zeros((len(X), len(X2)))
+        log.debug('mat shape: {}'.format(mat.shape))
         for i in range(len(X)):
             x1 = X[i][0]
             for j in range(len(X2)):
                 x2 = X2[j]
-                log.debug('x1 shape: {}, x2 shape: {}'.format(x1.shape, x2.shape))
-                mat[i][j] = (max_cnt - 2*discordant_cnt(x1, x2)) / max_cnt
+                mat[i][j] = discordant_cnt(x1, x2)
         
-        return mat
+        return torch.exp(- self.lengthscale * mat)
 
     
 class VSKernel(Kernel):
-    has_lengthscale = True
     def __init__(self, mode, **kwargs):
         super().__init__(**kwargs)
         self.pos_kernel = PositionKernel()
@@ -221,7 +239,6 @@ class BO(BaseOptimizer):
             fixed_vars = {j: pos for j, pos in zip(idx, proposed_X[i])}
             log.debug('fixed variables: {}'.format(fixed_vars))
             new_x = self.fillin_strategy.fillin(fixed_vars)
-            new_x = new_x.astype(np.int)
             log.debug('new x: {}'.format(new_x))
             new_X.append(new_x)
         

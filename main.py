@@ -13,7 +13,6 @@ def main(cfg: DictConfig) -> None:
     import wandb
     import time
     from utils import seed_everything, load_task
-    from algorithms import BO
     
     if cfg['seed'] is not None:
         seed_everything(cfg['seed'])

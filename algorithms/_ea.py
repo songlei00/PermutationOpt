@@ -1,6 +1,9 @@
 import numpy as np
 from typing import List
+import logging
 from ._utils import get_init_samples
+
+log = logging.getLogger(__name__)
 
 
 def swap_mutation(x: np.array, repeats=1):
@@ -20,8 +23,13 @@ def order_crossover(x1: np.array, x2: np.array):
     i, j = np.random.choice(range(x_len), 2, replace=False)
     i, j = min(i, j), max(i, j)
     next_x[i: j] = x1[i: j]
-    for k in range(j+1, j+1+x_len):
-        next_x[k]
+    copy_idx = j
+    for k in range(j, j+x_len-(j-i)):
+        while x2[copy_idx] in next_x[i: j]:
+            copy_idx = (copy_idx + 1) % x_len
+        next_x[k % x_len] = x2[copy_idx]
+        copy_idx = (copy_idx + 1) % x_len
+    log.debug('next x: {}'.format(next_x))
     return next_x
 
 
@@ -76,8 +84,7 @@ class EA:
             for _ in range(self.offspring_size):
                 i, j = np.random.choice(range(self.pop_size), 2, replace=False)
                 x1, x2 = self.population[i], self.population[j]
-                # next_x = self._crossover(x1, x2)
-                next_x = x1
+                next_x = self._crossover(x1, x2)
                 next_x = self._mutation(next_x)
                 offspring.append(next_x)
                 
