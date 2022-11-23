@@ -8,11 +8,12 @@ from botorch.acquisition import ExpectedImprovement
 import numpy as np
 from collections import deque
 from typing import List
+import time
 import logging
 from ._ea import EA
 from ._base import BaseOptimizer
-from ._fillin_strategy import PermutationRandomStrategy
-from ._utils import get_init_samples, permutation_sampler
+from ._fillin_strategy import PermutationRandomStrategy, PermutationBestKPosStrategy
+from ._utils import get_init_samples, permutation_sampler, select, get_subset
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class PositionKernel(Kernel):
         if X.dim() == 2:
             X = X[:, None, :]
         kernel_mat = torch.sum((X - X2)**2, axis=-1)
-        log.debug('res shape: {}'.format(kernel_mat.shape))
+        # log.debug('res shape: {}'.format(kernel_mat.shape))
         return torch.exp(- kernel_mat)
     
 
@@ -55,6 +56,16 @@ class OrderKernel(Kernel):
     #             mat[i][j] = (max_cnt - 2*discordant_cnt(x1, x2)) / max_cnt
         
     #     return mat
+    
+    def _featurize(self, x):
+        assert x.dim() == 1
+        featurize_x = []
+        for i in range(len(x)):
+            for j in range(i+1, len(x)):
+                featurize_x.append(1 if x[i] > x[j] else -1)
+        featurize_x = torch.tensor(featurize_x, dtype=torch.float)
+        normalizer = np.sqrt(len(x) * (len(x) - 1) / 2)
+        return featurize_x / normalizer
 
     def forward(self, X, X2, **params):
         if X.dim() == 2:
@@ -63,14 +74,14 @@ class OrderKernel(Kernel):
             assert len(X2) == 1
             X2 = X2[0]
         assert X.shape[1] == 1
-        log.debug('Order kernel: X shape: {}, X2 shape: {}'.format(X.shape, X2.shape))
         mat = torch.zeros((len(X), len(X2)))
-        log.debug('mat shape: {}'.format(mat.shape))
         for i in range(len(X)):
             x1 = X[i][0]
+            x1 = self._featurize(x1)
             for j in range(len(X2)):
                 x2 = X2[j]
-                mat[i][j] = discordant_cnt(x1, x2)
+                x2 = self._featurize(x2)
+                mat[i][j] = torch.sum((x1 - x2)**2)
         
         return torch.exp(- self.lengthscale * mat)
 
@@ -83,8 +94,8 @@ class VSKernel(Kernel):
         self.mode = mode
         
     def forward(self, X, X2, **params):
-        log.debug('X shape: {}'.format(X.shape))
-        log.debug('X2 shape: {}'.format(X2.shape))
+        # log.debug('X shape: {}'.format(X.shape))
+        # log.debug('X2 shape: {}'.format(X2.shape))
 
         pos_mat = self.pos_kernel(X, X2)
         order_mat = self.order_kernel(X, X2)
@@ -123,6 +134,7 @@ class BO(BaseOptimizer):
         self.kernel_type = kernel_type
         fillin_strategy_factory = {
             'random': PermutationRandomStrategy(dims, lb, ub),
+            'best_pos': PermutationBestKPosStrategy(dims, lb, ub, 10),
         }
         self.fillin_strategy = fillin_strategy_factory[fillin_type]
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
@@ -146,24 +158,12 @@ class BO(BaseOptimizer):
             raise NotImplementedError
         return kernel
         
-    def _get_acqf(self, acqf_type, model):
+    def _get_acqf(self, acqf_type, model, train_X: Tensor, train_Y: Tensor):
         if acqf_type == 'EI':
-            AF = ExpectedImprovement(model, best_f=np.max(self.train_Y).item()).to(self.device)
+            AF = ExpectedImprovement(model, best_f=train_Y.max().item()).to(self.device)
         else:
             raise NotImplementedError
         return AF
-    
-    def _select(self, dims, active_dims):
-        idx = np.random.choice(range(dims), active_dims, replace=False)
-        return idx
-    
-    def _get_subset(self, train_X, idx):
-        # return the position of idx in train_X
-        subset_X = torch.zeros((len(train_X), len(idx)))
-        for i, j in enumerate(idx):
-            pos = torch.where(train_X == j)
-            subset_X[:, i] = pos[1]
-        return subset_X
         
     def _init_model(self, train_X: Tensor, train_Y: Tensor):
         Y_var = torch.full_like(train_Y, 0.01)
@@ -181,6 +181,47 @@ class BO(BaseOptimizer):
         indices = torch.argsort(cand_Y)[-n: ]
         proposed_X, proposed_Y = cand_X[indices], cand_Y[indices]
         return proposed_X, proposed_Y
+
+    def _optimize_acqf_local_search(self, dims, AF, lb, ub, n=1):
+        assert n == 1
+        n_restart = 10
+        init_X, init_Y = self._optimize_acqf_random(dims, AF, lb, ub, n_restart)
+        best_cand = None
+        best_vals = None
+        with torch.no_grad():
+            for i in range(n_restart):
+                # x = torch.from_numpy(np.random.permutation(dims))
+                # vals = AF(x.unsqueeze(0))
+                x = init_X[i]
+                vals = init_Y[i]
+                for _ in range(100):
+                    all_cands = []
+                    all_vals = []
+                    # generate neighbors
+                    for i in range(dims):
+                        for j in range(i+1, dims):
+                            next_x = x.clone()
+                            # next_x[i], next_x[j] = next_x[j], next_x[i]
+                            tmp = next_x[i].item()
+                            next_x[i] = next_x[j].item()
+                            next_x[j] = tmp
+                            all_cands.append(next_x)
+                            all_vals.append(AF(next_x.unsqueeze(0)))
+                    idx = torch.argmax(torch.cat(all_vals))
+                    if all_vals[idx] > vals:
+                        x = all_cands[idx]
+                        vals = all_vals[idx]
+                    else:
+                        break
+                if best_vals is None or vals > best_vals:
+                    best_cand = x
+                    best_vals = vals
+                # log.debug('-----------------------')
+                # log.debug('x: {}'.format(x))
+                # log.debug('vals: {}'.format(vals))
+                # log.debug('-----------------------')
+            
+        return [best_cand], [best_vals]
 
     def _optimize_acqf_ea(self, dims, AF, lb, ub, n=1):
         ea_alg = EA(dims, lb, ub, pop_size=10, init_sampler_type='permutation', mutation_type='swap', crossover_type='order')
@@ -200,6 +241,8 @@ class BO(BaseOptimizer):
     def _optimize_acqf(self, dims, AF, lb, ub, n=1):
         if self.acqf_opt_type == 'random':
             proposed_X, proposed_Y = self._optimize_acqf_random(dims, AF, lb, ub, n)
+        elif self.acqf_opt_type == 'ls':
+            proposed_X, proposed_Y = self._optimize_acqf_local_search(dims, AF, lb, ub, n)
         elif self.acqf_opt_type == 'ea':
             proposed_X, proposed_Y = self._optimize_acqf_ea(dims, AF, lb, ub, n)
         else:
@@ -218,20 +261,29 @@ class BO(BaseOptimizer):
         
         # prepare train data
         train_X_tensor = torch.vstack(self.train_X).float().to(self.device)
-        idx = self._select(self.dims, self.active_dims)
-        subset_X = self._get_subset(train_X_tensor, idx)
+        idx = select(self.dims, self.active_dims)
+        log.debug('selected idx: {}'.format(idx))
+        subset_X = get_subset(train_X_tensor, idx)
         train_Y_tensor = torch.from_numpy(np.vstack(self.train_Y)).to(self.device)
         train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / train_Y_tensor.std()
 
         # train model
+        st = time.time()
         mll, model = self._init_model(subset_X, train_Y_tensor)
         fit_gpytorch_model(mll)
+
+        log.info('Train time: {}'.format(time.time() - st))
+        st = time.time()
         
         # optimize acquisition function
-        AF = self._get_acqf(self.acqf_type, model)
+        AF = self._get_acqf(self.acqf_type, model, subset_X, train_Y_tensor)
         proposed_X, _ = self._optimize_acqf(self.active_dims, AF, self.lb, self.ub, 1)
+        log.debug('Proposed X: {}'.format(proposed_X))
         assert len(proposed_X) == 1
         proposed_X = [proposed_X[i].cpu().detach().numpy() for i in range(len(proposed_X))]
+
+        log.info('Optimize acquisition function time: {}'.format(time.time() - st))
+        st = time.time()
 
         # fill in
         new_X = []
@@ -250,4 +302,8 @@ class BO(BaseOptimizer):
         X = [torch.as_tensor(x) for x in X]
         self.train_X.extend(X)
         self.train_Y.extend(Y)
+        for x, y in zip(X, Y):
+            if isinstance(x, Tensor):
+                x = x.cpu().detach().numpy()
+            self.fillin_strategy.update(x.reshape(1, -1), y)
         

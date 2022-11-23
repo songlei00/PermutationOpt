@@ -9,3 +9,4 @@ model:
     acqf_type: 'EI'
     acqf_opt_type: 'ea'
     kernel_type: 'vs'
+    fillin_type: 'random'

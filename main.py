@@ -13,6 +13,10 @@ def main(cfg: DictConfig) -> None:
     import wandb
     import time
     from utils import seed_everything, load_task
+
+    log.info('------------ config -------------')
+    log.info(cfg)
+    log.info('--------------------------------')
     
     if cfg['seed'] is not None:
         seed_everything(cfg['seed'])
@@ -33,7 +37,6 @@ def main(cfg: DictConfig) -> None:
     dims = func.dims
     f = lambda x: -func(x)
     alg = hydra.utils.instantiate(alg_cfg['model'], dims=dims, lb=np.zeros(dims), ub=np.full(dims, dims-1))
-    # alg = BO(dims=dims, lb=0, ub=dims-1)
     
     log.info(f'func: {f}, alg: {alg}, dims: {dims}')
     
@@ -56,8 +59,11 @@ def main(cfg: DictConfig) -> None:
             max_idx = np.argmax(cands_y)
             x_best = cands[max_idx]
             y_best = cands_y[max_idx]
-        log.info('Epoch: {}, total evaluations: {}, y best: {}'.format(epoch, total_evaluations, y_best))
+        log.info('-------------------------------------')
+        log.info('Epoch: {}, total evaluations: {}'.format(epoch, total_evaluations))
+        log.info('x best: {}, y best: {}'.format(x_best, y_best))
         log.info('cands: {}, cands y: {}'.format(cands, cands_y))
+        log.info('-------------------------------------')
 
         # wandb log
         wandb.log({

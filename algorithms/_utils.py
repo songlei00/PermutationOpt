@@ -3,6 +3,7 @@ from torch.quasirandom import SobolEngine
 import numpy as np
 
 
+# ================== init function =================
 def from_unit_cube(points, lb, ub):
     assert np.all(lb < ub) 
     assert lb.ndim == 1 
@@ -52,6 +53,27 @@ def get_init_samples(sampler_type, n, dims, lb, ub):
     else:
         raise NotImplementedError
     return points
+
+
+# ================== init function =================
+def select(dims, active_dims):
+    idx = np.random.choice(range(dims), active_dims, replace=False)
+    idx = np.sort(idx)
+    return idx
+
+def get_subset(train_X, idx):
+    # return the position of idx in train_X
+    if isinstance(train_X, np.ndarray):
+        zeros_fn = np.zeros
+        where_fn = np.where
+    elif isinstance(train_X, torch.Tensor):
+        zeros_fn = torch.zeros
+        where_fn = torch.where
+    subset_X = zeros_fn((len(train_X), len(idx)))
+    for i, j in enumerate(idx):
+        pos = where_fn(train_X == j)
+        subset_X[:, i] = pos[1]
+    return subset_X
 
 
 if __name__ == '__main__':

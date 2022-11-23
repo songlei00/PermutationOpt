@@ -3,7 +3,7 @@ defaults:
     - task: qap
     - algorithm: bo
 
-epochs: 100
+epochs: 15
 project: 'permutation-experiments'
 # device: 'cuda'
 device: 'cpu'
