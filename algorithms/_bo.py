@@ -18,6 +18,37 @@ from ._utils import get_init_samples, permutation_sampler, select, get_subset
 log = logging.getLogger(__name__)
 
 
+def featurize(x):
+    assert x.dim() == 1
+    featurize_x = []
+    for i in range(len(x)):
+        for j in range(i+1, len(x)):
+            featurize_x.append(1 if x[i] > x[j] else -1)
+    featurize_x = torch.tensor(featurize_x, dtype=torch.float)
+    normalizer = np.sqrt(len(x) * (len(x) - 1) / 2)
+    return featurize_x / normalizer
+
+
+class FeatureCache:
+    def __init__(self):
+        self.cache = dict()
+
+    def _get_key(self, x):
+        return tuple(x.tolist())
+
+    def push(self, x):
+        feature = self.get(x)
+        if feature is None:
+            feature = featurize(x)
+            self.cache[self._get_key(x)] = feature
+        return feature
+
+    def get(self, x):
+        return self.cache.get(self._get_key(x), None)
+
+feature_cache = FeatureCache()
+
+
 class PositionKernel(Kernel):
     def forward(self, X, X2, **params):
         if X.dim() == 2:
@@ -56,16 +87,6 @@ class OrderKernel(Kernel):
     #             mat[i][j] = (max_cnt - 2*discordant_cnt(x1, x2)) / max_cnt
         
     #     return mat
-    
-    def _featurize(self, x):
-        assert x.dim() == 1
-        featurize_x = []
-        for i in range(len(x)):
-            for j in range(i+1, len(x)):
-                featurize_x.append(1 if x[i] > x[j] else -1)
-        featurize_x = torch.tensor(featurize_x, dtype=torch.float)
-        normalizer = np.sqrt(len(x) * (len(x) - 1) / 2)
-        return featurize_x / normalizer
 
     def forward(self, X, X2, **params):
         if X.dim() == 2:
@@ -77,10 +98,12 @@ class OrderKernel(Kernel):
         mat = torch.zeros((len(X), len(X2)))
         for i in range(len(X)):
             x1 = X[i][0]
-            x1 = self._featurize(x1)
+            x1 = feature_cache.push(x1)
+            # x1 = featurize(x1)
             for j in range(len(X2)):
                 x2 = X2[j]
-                x2 = self._featurize(x2)
+                x2 = feature_cache.push(x2)
+                # x2 = featurize(x2)
                 mat[i][j] = torch.sum((x1 - x2)**2)
         
         return torch.exp(- self.lengthscale * mat)
