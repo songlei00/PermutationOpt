@@ -249,7 +249,7 @@ class BO(BaseOptimizer):
             raise NotImplementedError
         return proposed_X, proposed_Y
     
-    def ask(self) -> np.array:
+    def ask(self) -> List[np.ndarray]:
         # init
         if len(self.cache_X) + len(self.train_X) < self.n_init:
             points = self._init_samples(self.init_sampler_type, self.n_init)
@@ -298,7 +298,7 @@ class BO(BaseOptimizer):
         
         return [self.cache_X.popleft()]
     
-    def tell(self, X: List[np.array], Y):
+    def tell(self, X: List[np.ndarray], Y):
         X = [torch.as_tensor(x) for x in X]
         self.train_X.extend(X)
         self.train_Y.extend(Y)

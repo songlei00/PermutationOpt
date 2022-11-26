@@ -16,9 +16,12 @@ def seed_everything(seed):
     return seed
 
 
-def load_task(task_name):
-    if task_name == 'qap':
+def load_task(task_cfg):
+    if task_cfg['name'] == 'qap':
         from benchmarks import QAPProblem
         return QAPProblem(3)
+    elif task_cfg['name'] == 'tsp':
+        from benchmarks import TSPProblem
+        return TSPProblem(task_cfg['file_path'])
     else:
-        pass
+        raise NotImplementedError

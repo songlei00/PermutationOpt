@@ -2,35 +2,9 @@ import numpy as np
 from typing import List
 import logging
 from ._utils import get_init_samples
+from ._ea_operator import swap_mutation, order_crossover
 
 log = logging.getLogger(__name__)
-
-
-def swap_mutation(x: np.array, repeats=1):
-    assert x.ndim == 1
-    next_x = x.copy()
-    for _ in range(repeats):
-        i, j = np.random.choice(range(len(x)), 2, replace=False)
-        next_x[i], next_x[j] = next_x[j], next_x[i]
-    return next_x
-
-
-def order_crossover(x1: np.array, x2: np.array):
-    assert x1.ndim == 1 and x2.ndim == 1
-    x_len = len(x1)
-    next_x = np.zeros(x_len)
-    
-    i, j = np.random.choice(range(x_len), 2, replace=False)
-    i, j = min(i, j), max(i, j)
-    next_x[i: j] = x1[i: j]
-    copy_idx = j
-    for k in range(j, j+x_len-(j-i)):
-        while x2[copy_idx] in next_x[i: j]:
-            copy_idx = (copy_idx + 1) % x_len
-        next_x[k % x_len] = x2[copy_idx]
-        copy_idx = (copy_idx + 1) % x_len
-    log.debug('next x: {}'.format(next_x))
-    return next_x
 
 
 class EA:
@@ -49,7 +23,7 @@ class EA:
         self.population = []
         self.fitness = []
 
-    def _init_samples(self, init_sampler_type, n) -> List[np.array]:
+    def _init_samples(self, init_sampler_type, n) -> List[np.ndarray]:
         points = get_init_samples(init_sampler_type, n, self.dims, self.lb, self.ub)
         points = [points[i] for i in range(len(points))]
         return points
@@ -90,7 +64,7 @@ class EA:
                 
         return offspring
     
-    def tell(self, X: List[np.array], Y):
+    def tell(self, X: List[np.array], Y: List):
         if len(self.population) == 0:
             self.population = X
             self.fitness = Y

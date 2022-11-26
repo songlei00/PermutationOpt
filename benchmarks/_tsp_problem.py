@@ -54,13 +54,15 @@ def att_dis_fn(x1, y1, x2, y2):
 
 
 class TSPProblem:
-    def __init__(self, file_path):
+    def __init__(self, file_path, maximize=True):
         self.meta_info_dict, self.pos_dict = self._read_config_file(file_path + '.tsp')
         assert self.meta_info_dict['TYPE'] == 'TSP'
-        log.info('meta info dict')
-        log.info(self.meta_info_dict)
-        log.info('pos dict')
-        log.info(self.pos_dict)
+        log.debug('meta info dict')
+        log.debug(self.meta_info_dict)
+        log.debug('pos dict')
+        log.debug(self.pos_dict)
+        self.dims = int(self.meta_info_dict['DIMENSION'])
+        self.maximize = maximize
 
         # calculate the distance
         self.dis_fn = self._get_dis_fn(self.meta_info_dict['EDGE_WEIGHT_TYPE'])
@@ -68,9 +70,9 @@ class TSPProblem:
 
         # best solution
         _, self.opt = self._read_opt_file(file_path + '.opt.tour')
-        log.info(self.opt)
-        opt_len = self.__call__(self.opt)
-        log.info('opt: {}'.format(opt_len))
+        log.debug('opt: {}'.format(self.opt))
+        self.opt_len = self.__call__(self.opt)
+        log.debug('opt length: {}'.format(self.opt_len))
 
     def _read_config_file(self, file_path):
         with open(file_path, 'r') as f:
@@ -121,7 +123,7 @@ class TSPProblem:
             content = f.readlines()
         meta_info_dict = dict()
         opt = []
-        for i, line in enumerate(content):
+        for line in content:
             line = line.strip()
             if line in ['TOUR_SECTION', 'EOF']:
                 pass
@@ -146,6 +148,8 @@ class TSPProblem:
         for i in range(len(x)-1):
             length += dis_mat[x[i]][x[i+1]]
         length += dis_mat[x[-1]][x[0]]
+        if self.maximize:
+            length = -length
         return length
 
     def __call__(self, x):
@@ -157,5 +161,5 @@ if __name__ == '__main__':
     base_path = './tsp_data/'
     task_name = ['att48', 'bayg29']
     tsp = TSPProblem(base_path + task_name[0])
-    
-    
+    print(tsp.opt_len)
+    print(tsp(np.random.permutation(tsp.dims)))

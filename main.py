@@ -33,12 +33,11 @@ def main(cfg: DictConfig) -> None:
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
     log.info(f'device: {device}')
     
-    func = load_task(task_cfg['name'])
+    func = load_task(task_cfg)
     dims = func.dims
-    f = lambda x: -func(x)
     alg = hydra.utils.instantiate(alg_cfg['model'], dims=dims, lb=np.zeros(dims), ub=np.full(dims, dims-1))
     
-    log.info(f'func: {f}, alg: {alg}, dims: {dims}')
+    log.info(f'func: {func}, alg: {alg}, dims: {dims}')
     
     # train
     xs = []
@@ -48,7 +47,7 @@ def main(cfg: DictConfig) -> None:
     total_evaluations = 0
     for epoch in range(cfg['epochs']):
         cands = alg.ask()
-        cands_y = [f(cand) for cand in cands]
+        cands_y = [func(cand) for cand in cands]
         alg.tell(cands, cands_y)
 
         # log
