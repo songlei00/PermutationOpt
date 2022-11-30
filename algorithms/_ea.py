@@ -1,14 +1,16 @@
 import numpy as np
 from typing import List
 import logging
+from ._base import BaseOptimizer
 from ._utils import get_init_samples
 from ._ea_operator import swap_mutation, order_crossover
 
 log = logging.getLogger(__name__)
 
 
-class EA:
-    def __init__(self, dims, lb, ub, pop_size=20, init_sampler_type='permutation',
+class EA(BaseOptimizer):
+    def __init__(
+        self, dims, lb, ub, pop_size=20, init_sampler_type='permutation',
         mutation_type='swap', crossover_type='order'
     ):
         self.dims = dims
@@ -64,7 +66,7 @@ class EA:
                 
         return offspring
     
-    def tell(self, X: List[np.array], Y: List):
+    def tell(self, X: List[np.ndarray], Y: List):
         if len(self.population) == 0:
             self.population = X
             self.fitness = Y

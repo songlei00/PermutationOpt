@@ -13,14 +13,14 @@ def from_unit_cube(points, lb, ub):
     return new_points
 
 
-def sobel_sampler(n, dims) -> np.array:
+def sobel_sampler(n, dims) -> np.ndarray:
     seed = np.random.randint(int(5e5))
     sobol = SobolEngine(dims, scramble=True, seed=seed)
     points = sobol.draw(n).to(dtype=torch.float64).cpu().detach().numpy()
     return points
 
 
-def lhs_sampler(n, dims) -> np.array:
+def lhs_sampler(n, dims) -> np.ndarray:
     points = np.zeros((n, dims))
     centers = (1.0 + 2.0 * np.arange(0.0, n)) 
     centers = centers / float(2 * n)
@@ -33,7 +33,7 @@ def lhs_sampler(n, dims) -> np.array:
     return points
 
 
-def permutation_sampler(n, dims, choices=None) -> np.array:
+def permutation_sampler(n, dims, choices=None) -> np.ndarray:
     if choices is None:
         choices = range(dims)
     points = [np.random.choice(choices, dims, replace=False) for _ in range(n)]

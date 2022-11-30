@@ -81,7 +81,7 @@ class TSPProblem:
         pos_dict = dict()
         for line in content:
             line = line.strip()
-            if line in ['NODE_COORD_SECTION', 'EOF']:
+            if len(line) == 0 or line in ['NODE_COORD_SECTION', 'EOF']:
                 pass
             elif line[0].isdigit():
                 # parse the position
@@ -125,7 +125,7 @@ class TSPProblem:
         opt = []
         for line in content:
             line = line.strip()
-            if line in ['TOUR_SECTION', 'EOF']:
+            if len(line) == 0 or line in ['TOUR_SECTION', 'EOF']:
                 pass
             elif line[0].isdigit() or line == '-1':
                 # parse the position
@@ -159,7 +159,7 @@ class TSPProblem:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     base_path = './tsp_data/'
-    task_name = ['att48', 'bayg29']
+    task_name = ['ulysses22', 'att48', 'lin105']
     tsp = TSPProblem(base_path + task_name[0])
     print(tsp.opt_len)
     print(tsp(np.random.permutation(tsp.dims)))

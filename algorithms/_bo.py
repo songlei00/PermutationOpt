@@ -95,7 +95,7 @@ class OrderKernel(Kernel):
             assert len(X2) == 1
             X2 = X2[0]
         assert X.shape[1] == 1
-        mat = torch.zeros((len(X), len(X2)))
+        mat = torch.zeros((len(X), len(X2))).to(X)
         for i in range(len(X)):
             x1 = X[i][0]
             x1 = feature_cache.push(x1)
@@ -141,8 +141,9 @@ class VSKernel(Kernel):
 
 class BO(BaseOptimizer):
     def __init__(
-        self, dims, lb, ub, active_dims=3, n_init=10, batch_size=1, init_sampler_type='permutation', acqf_init_sampler_type='permutation', 
-        acqf_type='EI', acqf_opt_type='random', kernel_type='vs', fillin_type='random', device='cpu'
+        self, dims, lb, ub, active_dims=3, n_init=10, batch_size=1, init_sampler_type='permutation', 
+        acqf_init_sampler_type='permutation', acqf_type='EI', acqf_opt_type='random', kernel_type='vs', 
+        fillin_type='random', device='cpu'
     ):
         self.dims = dims
         self.active_dims = active_dims
@@ -167,7 +168,7 @@ class BO(BaseOptimizer):
         self.train_X = []
         self.train_Y = []
         
-    def _init_samples(self, init_sampler_type, n) -> List[np.array]:
+    def _init_samples(self, init_sampler_type, n) -> List[np.ndarray]:
         points = get_init_samples(init_sampler_type, n, self.dims, self.lb, self.ub)
         points = [points[i] for i in range(len(points))]
         return points
@@ -189,11 +190,11 @@ class BO(BaseOptimizer):
         return AF
         
     def _init_model(self, train_X: Tensor, train_Y: Tensor):
-        Y_var = torch.full_like(train_Y, 0.01)
-        kernel = self._get_kernel(self.kernel_type)
+        Y_var = torch.full_like(train_Y, 0.01).to(self.device)
+        kernel = self._get_kernel(self.kernel_type).to(self.device)
         model = FixedNoiseGP(train_X, train_Y, Y_var, covar_module=kernel).to(self.device)
         likelihood = gpytorch.likelihoods.GaussianLikelihood().to(self.device)
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model).to(self.device)
         return mll, model
     
     def _optimize_acqf_random(self, dims, AF, lb, ub, n=1):
@@ -205,53 +206,50 @@ class BO(BaseOptimizer):
         proposed_X, proposed_Y = cand_X[indices], cand_Y[indices]
         return proposed_X, proposed_Y
 
-    def _optimize_acqf_local_search(self, dims, AF, lb, ub, n=1):
+    def _optimize_acqf_local_search(self, dims, AF, lb, ub, n=1, n_restart = 10):
         assert n == 1
-        n_restart = 10
         init_X, init_Y = self._optimize_acqf_random(dims, AF, lb, ub, n_restart)
         best_cand = None
         best_vals = None
-        with torch.no_grad():
-            for i in range(n_restart):
-                # x = torch.from_numpy(np.random.permutation(dims))
-                # vals = AF(x.unsqueeze(0))
-                x = init_X[i]
-                vals = init_Y[i]
-                for _ in range(100):
-                    all_cands = []
-                    all_vals = []
-                    # generate neighbors
-                    for i in range(dims):
-                        for j in range(i+1, dims):
-                            next_x = x.clone()
-                            # next_x[i], next_x[j] = next_x[j], next_x[i]
-                            tmp = next_x[i].item()
-                            next_x[i] = next_x[j].item()
-                            next_x[j] = tmp
-                            all_cands.append(next_x)
-                            all_vals.append(AF(next_x.unsqueeze(0)))
-                    idx = torch.argmax(torch.cat(all_vals))
-                    if all_vals[idx] > vals:
-                        x = all_cands[idx]
-                        vals = all_vals[idx]
-                    else:
-                        break
-                if best_vals is None or vals > best_vals:
-                    best_cand = x
-                    best_vals = vals
-                # log.debug('-----------------------')
-                # log.debug('x: {}'.format(x))
-                # log.debug('vals: {}'.format(vals))
-                # log.debug('-----------------------')
+        
+        for i in range(n_restart):
+            x = init_X[i].cpu()
+            vals = init_Y[i].cpu()
+            while True:
+                all_cands = []
+                all_vals = []
+                # generate neighbors
+                for i in range(dims):
+                    for j in range(i+1, dims):
+                        next_x = x.clone()
+                        tmp = next_x[i].item()
+                        next_x[i] = next_x[j].item()
+                        next_x[j] = tmp
+                        all_cands.append(next_x)
+                        with torch.no_grad():
+                            all_vals.append(AF(next_x.unsqueeze(0).to(self.device)))
+                idx = torch.argmax(torch.cat(all_vals))
+                if all_vals[idx] > vals:
+                    x = all_cands[idx]
+                    vals = all_vals[idx]
+                else:
+                    break
+            if best_vals is None or vals > best_vals:
+                best_cand = x
+                best_vals = vals
+            # log.debug('-----------------------')
+            # log.debug('x: {}'.format(x))
+            # log.debug('vals: {}'.format(vals))
+            # log.debug('-----------------------')
             
         return [best_cand], [best_vals]
 
     def _optimize_acqf_ea(self, dims, AF, lb, ub, n=1):
         ea_alg = EA(dims, lb, ub, pop_size=10, init_sampler_type='permutation', mutation_type='swap', crossover_type='order')
         
-        for _ in range(100):
+        for _ in range(500):
             cands = ea_alg.ask()
-            cands_tensor = [torch.from_numpy(cand) for cand in cands]
+            cands_tensor = [torch.from_numpy(cand).float() for cand in cands]
             cands_y_tensor = [AF(cand.unsqueeze(0)) for cand in cands_tensor]
             cands_y = [y.cpu().detach().numpy().item() for y in cands_y_tensor]
             ea_alg.tell(cands, cands_y)
@@ -283,10 +281,10 @@ class BO(BaseOptimizer):
             return [self.cache_X.popleft()]
         
         # prepare train data
-        train_X_tensor = torch.vstack(self.train_X).float().to(self.device)
+        train_X_tensor = torch.vstack(self.train_X).float()
         idx = select(self.dims, self.active_dims)
         log.debug('selected idx: {}'.format(idx))
-        subset_X = get_subset(train_X_tensor, idx)
+        subset_X = get_subset(train_X_tensor, idx).to(self.device)
         train_Y_tensor = torch.from_numpy(np.vstack(self.train_Y)).to(self.device)
         train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / train_Y_tensor.std()
 

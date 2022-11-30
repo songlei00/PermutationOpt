@@ -1,4 +1,3 @@
-from textwrap import fill
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from typing import Dict
@@ -57,15 +56,12 @@ class PermutationBestKStrategy(BaseStrategy):
         for k, v in fixed_vars.items():
             ret[int(v)] = k
         i = 0
-        # print('fixed vars: {}'.format(fixed_vars))
-        # print('x: {}'.format(x))
         for j in range(self.dims):
             if j not in fixed_vars.values():
                 while x[i] in fixed_vars.keys():
                     i += 1
                 ret[j] = x[i]
                 i += 1
-        # print('ret: {}'.format(ret))
         assert len(set(ret)) == self.dims
         return ret
 

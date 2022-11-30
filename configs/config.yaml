@@ -5,6 +5,4 @@ defaults:
 
 epochs: 15
 project: 'permutation-experiments'
-# device: 'cuda'
-device: 'cpu'
 seed: 2022

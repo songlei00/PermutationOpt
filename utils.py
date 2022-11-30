@@ -20,7 +20,7 @@ def load_task(task_cfg):
     if task_cfg['name'] == 'qap':
         from benchmarks import QAPProblem
         return QAPProblem(3)
-    elif task_cfg['name'] == 'tsp':
+    elif task_cfg['name'].startswith('tsp'):
         from benchmarks import TSPProblem
         return TSPProblem(task_cfg['file_path'])
     else:

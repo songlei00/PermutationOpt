@@ -1,9 +1,6 @@
 import hydra
 import omegaconf
 from omegaconf import DictConfig
-import logging
-
-log = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')
@@ -11,8 +8,11 @@ def main(cfg: DictConfig) -> None:
     import torch
     import numpy as np
     import wandb
+    import logging
     import time
     from utils import seed_everything, load_task
+
+    log = logging.getLogger(__name__)
 
     log.info('------------ config -------------')
     log.info(cfg)
@@ -27,17 +27,16 @@ def main(cfg: DictConfig) -> None:
     curr_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     wandb.init(
         project=cfg['project'],
-        name='{}-{}-{}-{}'.format(task_cfg['name'], alg_cfg['name'], cfg['seed'], curr_time),
+        name='{}-{}-{}-{}'.format(curr_time, task_cfg['name'], alg_cfg['name'], cfg['seed']),
         config=omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),
     )
-    device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
-    log.info(f'device: {device}')
+    # device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
+    # log.info(f'device: {device}')
     
     func = load_task(task_cfg)
     dims = func.dims
     alg = hydra.utils.instantiate(alg_cfg['model'], dims=dims, lb=np.zeros(dims), ub=np.full(dims, dims-1))
-    
-    log.info(f'func: {func}, alg: {alg}, dims: {dims}')
+    # log.info(f'func: {func}, alg: {alg}, dims: {dims}')
     
     # train
     xs = []

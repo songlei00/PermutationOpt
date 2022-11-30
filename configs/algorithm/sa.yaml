@@ -4,4 +4,5 @@ model:
     _target_: algorithms.SA
     decay: 0.99
     T: 100
+    update_freq: 100
     mutation_type: swap
