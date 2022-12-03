@@ -13,20 +13,9 @@ import logging
 from ._ea import EA
 from ._base import BaseOptimizer
 from ._fillin_strategy import PermutationRandomStrategy, PermutationBestKPosStrategy
-from ._utils import get_init_samples, permutation_sampler, select, get_subset
+from ._utils import get_init_samples, permutation_sampler, select, get_subset, featurize
 
 log = logging.getLogger(__name__)
-
-
-def featurize(x):
-    assert x.dim() == 1
-    featurize_x = []
-    for i in range(len(x)):
-        for j in range(i+1, len(x)):
-            featurize_x.append(1 if x[i] > x[j] else -1)
-    featurize_x = torch.tensor(featurize_x, dtype=torch.float)
-    normalizer = np.sqrt(len(x) * (len(x) - 1) / 2)
-    return featurize_x / normalizer
 
 
 class FeatureCache:
@@ -39,7 +28,7 @@ class FeatureCache:
     def push(self, x):
         feature = self.get(x)
         if feature is None:
-            feature = featurize(x)
+            feature = featurize(x, 'torch')
             self.cache[self._get_key(x)] = feature
         return feature
 
@@ -286,7 +275,7 @@ class BO(BaseOptimizer):
         log.debug('selected idx: {}'.format(idx))
         subset_X = get_subset(train_X_tensor, idx).to(self.device)
         train_Y_tensor = torch.from_numpy(np.vstack(self.train_Y)).to(self.device)
-        train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / train_Y_tensor.std()
+        train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / (train_Y_tensor.std() + 1e-6)
 
         # train model
         st = time.time()

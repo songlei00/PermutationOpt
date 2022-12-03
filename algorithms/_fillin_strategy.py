@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from typing import Dict
-from ._utils import get_subset
+from ._utils import get_subset, featurize
 
 
 class BaseStrategy(metaclass=ABCMeta):
@@ -50,7 +50,7 @@ class PermutationBestKStrategy(BaseStrategy):
         self.best_xs = np.zeros((0, dims))
         self.best_ys = np.zeros(0)
         self.k = k
-        
+
     def _get_fillin(self, fixed_vars, x):
         ret = np.zeros(self.dims)
         for k, v in fixed_vars.items():
@@ -94,5 +94,36 @@ class PermutationBestKPosStrategy(PermutationBestKStrategy):
 
 
 class PermutationBestKOrderStrategy(PermutationBestKStrategy):
+    def __init__(self, dims, lb, ub, k):
+        PermutationBestKStrategy.__init__(self, dims, lb, ub, k)
+        self.feature_xs = np.zeros((0, int(dims*(dims-1)/2)))
+
     def fillin(self, fixed_vars: Dict[int, int]):
-        pass
+        curr_idx = np.array(list(fixed_vars.keys()))
+        curr_pos = np.array(list(fixed_vars.values()))
+        idx = []
+        feature_x = featurize(curr_pos)
+        for i in curr_idx:
+            for j in curr_idx:
+                idx += i * (self.dims-1 + self.dims-1-(i-1)) / 2
+        assert len(idx) == len(feature_x)
+        dis = np.mean((self.feature_xs[idx] - feature_x)**2, axis=1)
+        idx = np.argmin(dis)
+        fillin_x = self.best_xs[idx]
+        ret = self._get_fillin(fixed_vars, fillin_x)
+        return ret
+
+    def update(self, x, y):
+        if len(self.best_xs) < self.k:
+            feature_x = featurize(x, 'numpy')
+            self.feature_xs = np.vstack((self.feature_xs, feature_x))
+            self.best_xs = np.vstack((self.best_xs, x))
+            self.best_ys = np.hstack((self.best_ys, y))
+        else:
+            min_y_idx = np.argmin(self.best_ys)
+            if y > self.best_ys[min_y_idx]:
+                feature_x = featurize(x, 'numpy')
+                self.feature_xs[min_y_idx] = feature_x
+                self.best_xs[min_y_idx] = x
+                self.best_ys[min_y_idx] = y
+        assert len(self.best_xs) <= self.k

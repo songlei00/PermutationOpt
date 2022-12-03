@@ -61,6 +61,7 @@ def select(dims, active_dims):
     idx = np.sort(idx)
     return idx
 
+
 def get_subset(train_X, idx):
     # return the position of idx in train_X
     if isinstance(train_X, np.ndarray):
@@ -74,6 +75,26 @@ def get_subset(train_X, idx):
         pos = where_fn(train_X == j)
         subset_X[:, i] = pos[1]
     return subset_X
+
+
+def featurize(x, ret_type='torch'):
+    assert ret_type in ['torch', 'numpy']
+    if ret_type == 'torch':
+        assert x.dim() == 1
+    else:
+        assert x.ndim == 1
+    featurize_x = []
+    for i in range(len(x)):
+        for j in range(i+1, len(x)):
+            featurize_x.append(1 if x[i] > x[j] else -1)
+    if ret_type == 'torch':
+        featurize_x = torch.tensor(featurize_x, dtype=torch.float)
+    elif ret_type == 'numpy':
+        featurize_x = np.array(featurize_x, dtype=np.float64)
+    else:
+        assert 0
+    normalizer = np.sqrt(len(x) * (len(x) - 1) / 2)
+    return featurize_x / normalizer
 
 
 if __name__ == '__main__':

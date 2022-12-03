@@ -48,6 +48,7 @@ class EA(BaseOptimizer):
         all_individual = parents + offspring
         all_fitness = parents_fit + offspring_fit
         indices = np.argsort(all_fitness)[-self.pop_size: ]
+
         next_generation = [all_individual[idx] for idx in indices]
         next_fitness = [all_fitness[idx] for idx in indices]
         return next_generation, next_fitness
@@ -71,4 +72,5 @@ class EA(BaseOptimizer):
             self.population = X
             self.fitness = Y
         else:
+            print(len(self.population), len(X))
             self.population, self.fitness = self._selection(self.population, self.fitness, X, Y)

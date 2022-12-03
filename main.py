@@ -65,9 +65,9 @@ def main(cfg: DictConfig) -> None:
 
         # wandb log
         wandb.log({
-            task_cfg['name']+'/epoch': epoch,
-            task_cfg['name']+'/total evaluations': total_evaluations,
-            task_cfg['name']+'/y': y_best,
+            'epoch': epoch,
+            'total evaluations': total_evaluations,
+            'y': y_best,
         })
         wandb.run.summary['y best'] = y_best
 

@@ -69,10 +69,10 @@ class TSPProblem:
         self.dis_mat = self._get_dis_mat()
 
         # best solution
-        _, self.opt = self._read_opt_file(file_path + '.opt.tour')
-        log.debug('opt: {}'.format(self.opt))
-        self.opt_len = self.__call__(self.opt)
-        log.debug('opt length: {}'.format(self.opt_len))
+        # _, self.opt = self._read_opt_file(file_path + '.opt.tour')
+        # log.debug('opt: {}'.format(self.opt))
+        # self.opt_len = self.__call__(self.opt)
+        # log.debug('opt length: {}'.format(self.opt_len))
 
     def _read_config_file(self, file_path):
         with open(file_path, 'r') as f:
@@ -159,7 +159,7 @@ class TSPProblem:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     base_path = './tsp_data/'
-    task_name = ['ulysses22', 'att48', 'lin105']
-    tsp = TSPProblem(base_path + task_name[0])
-    print(tsp.opt_len)
+    task_name = ['ulysses22', 'att48', 'lin105', 'lin318', 'rat575', 'pcb1173']
+    tsp = TSPProblem(base_path + task_name[5])
+    # print(tsp.opt_len)
     print(tsp(np.random.permutation(tsp.dims)))

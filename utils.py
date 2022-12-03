@@ -23,5 +23,8 @@ def load_task(task_cfg):
     elif task_cfg['name'].startswith('tsp'):
         from benchmarks import TSPProblem
         return TSPProblem(task_cfg['file_path'])
+    elif task_cfg['name'].startswith('earth'):
+        from benchmarks import EarthBenchmark
+        return EarthBenchmark(task_cfg['file_path'])
     else:
         raise NotImplementedError

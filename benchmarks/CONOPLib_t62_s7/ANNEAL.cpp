@@ -133,7 +133,7 @@ Label111:
 	if (COMMOD9->PENF <= 1)
 	{		
 		COMMOD9->PENF = 0;
-		cout<<"getPenalty"<<endl;
+		// cout<<"getPenalty"<<endl;
 		::GETPEN_WITH_TWOPEN(COMMOD9->INIPERM, COMMOD9->NXTPEN);
 		COMMOD9->PENF = tempPenf;
 	}
