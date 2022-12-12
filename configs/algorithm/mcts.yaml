@@ -5,3 +5,4 @@ model:
     Cp: 1
     leaf_size: 20
     max_propose: 20
+    solver_type: sa

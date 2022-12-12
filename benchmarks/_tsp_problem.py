@@ -54,7 +54,7 @@ def att_dis_fn(x1, y1, x2, y2):
 
 
 class TSPProblem:
-    def __init__(self, file_path, maximize=True):
+    def __init__(self, file_path, maximize=True, is_load_opt=False):
         self.meta_info_dict, self.pos_dict = self._read_config_file(file_path + '.tsp')
         assert self.meta_info_dict['TYPE'] == 'TSP'
         log.debug('meta info dict')
@@ -69,10 +69,11 @@ class TSPProblem:
         self.dis_mat = self._get_dis_mat()
 
         # best solution
-        # _, self.opt = self._read_opt_file(file_path + '.opt.tour')
-        # log.debug('opt: {}'.format(self.opt))
-        # self.opt_len = self.__call__(self.opt)
-        # log.debug('opt length: {}'.format(self.opt_len))
+        if is_load_opt:
+            _, self.opt = self._read_opt_file(file_path + '.opt.tour')
+            log.debug('opt: {}'.format(self.opt))
+            self.opt_len = self.__call__(self.opt)
+            log.debug('opt length: {}'.format(self.opt_len))
 
     def _read_config_file(self, file_path):
         with open(file_path, 'r') as f:
@@ -131,7 +132,7 @@ class TSPProblem:
                 # parse the position
                 if int(line) == -1:
                     continue
-                opt.append(int(line))
+                opt.append(int(line)-1)
             else:
                 # parse meta information
                 line = [i.strip() for i in line.split(':')]
@@ -144,7 +145,8 @@ class TSPProblem:
         assert x.ndim == 1
         assert len(x) == int(self.meta_info_dict['DIMENSION'])
         length = 0
-        x = [int(i-1) for i in x]
+        # x = [int(i-1) for i in x]
+        x = [int(i) for i in x]
         for i in range(len(x)-1):
             length += dis_mat[x[i]][x[i+1]]
         length += dis_mat[x[-1]][x[0]]

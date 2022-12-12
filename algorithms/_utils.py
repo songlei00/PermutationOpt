@@ -97,6 +97,25 @@ def featurize(x, ret_type='torch'):
     return featurize_x / normalizer
 
 
+class FeatureCache:
+    def __init__(self, input_type='numpy'):
+        self.input_type = input_type
+        self.cache = dict()
+
+    def _get_key(self, x):
+        return tuple(x.tolist())
+
+    def push(self, x):
+        feature = self.get(x)
+        if feature is None:
+            feature = featurize(x, self.input_type)
+            self.cache[self._get_key(x)] = feature
+        return feature
+
+    def get(self, x):
+        return self.cache.get(self._get_key(x), None)
+
+
 if __name__ == '__main__':
     n, dims = 10, 5
     points = sobel_sampler(n, dims)

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 seed_start=2022
-seed_end=2023
-epochs=10000
+seed_end=2022
+epochs=20000
 task=tsp
 dataset=att48
 task_name=tsp_$dataset
@@ -20,7 +20,42 @@ do
         algorithm=mcts \
         algorithm.name=mcts_sa \
         algorithm.model.Cp=2000 \
-        algorithm.model.max_propose=200 
+        algorithm.model.max_propose=200 \
+        seed=$seed
+
+    # python main.py \
+    #     epochs=$epochs \
+    #     task=$task \
+    #     task.name=$task_name \
+    #     task.file_path=$file_path \
+    #     algorithm=mcts \
+    #     algorithm.name=mcts_random \
+    #     algorithm.model.solver_type=random \
+    #     algorithm.model.Cp=2000 \
+    #     algorithm.model.max_propose=200 \
+    #     seed=$seed
+
+    # random 
+    # python main.py \
+    #     epochs=$epochs \
+    #     task=$task \
+    #     task.name=$task_name \
+    #     task.file_path=$file_path \
+    #     algorithm=random \
+    #     algorithm.name=random \
+    #     algorithm.model.active_dims=48 \
+    #     seed=$seed
+
+    # random group
+    # python main.py \
+    #     epochs=$epochs \
+    #     task=$task \
+    #     task.name=$task_name \
+    #     task.file_path=$file_path \
+    #     algorithm=random_group \
+    #     algorithm.name=random_group \
+    #     algorithm.model.active_dims=10 \
+    #     seed=$seed
 
     # sa
     # python main.py \
